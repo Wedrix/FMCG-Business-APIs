@@ -13,25 +13,34 @@ class CreateSalesTable extends Migration
      */
     public function up()
     {
-        Schema::create('_sales', function (Blueprint $table) {
+        Schema::create('sales', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('quantity');
-            $table->timestamp('s_date');
-            $table->foreign('shop_id')
+            $table->timestamp('sales_date');
+            
+            $table->unsignedBigInteger('shops_id');
+            $table->foreign('shops_id')
                 ->references('id')
                 ->on('shops')
                 ->onDelete('cascade');
-            $table->foriegn('user_id')
+                
+            $table->unsignedBigInteger('users_id');
+            $table->foreign('users_id')
                 ->references('id')
-                ->on('user')
+                ->on('users')
                 ->onDelete('cascade');
-            $table->foriegn('prod_id')
+                
+            $table->unsignedBigInteger('prod_id');
+            $table->foreign('prod_id')
                 ->references('id')
-                ->on('product')
+                ->on('products')
                 ->onDelete('cascade');
-            $table->foriegn('reciept_id')
+
+                
+            $table->unsignedBigInteger('receipt_id');
+            $table->foreign('receipt_id')
                 ->references('id')
-                ->on('reciept')
+                ->on('receipt')
                 ->onDelete('cascade');
         });
     }
@@ -43,6 +52,6 @@ class CreateSalesTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('_sales');
+        Schema::dropIfExists('sales');
     }
 }

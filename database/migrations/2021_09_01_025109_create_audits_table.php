@@ -17,10 +17,12 @@ class CreateAuditsTable extends Migration
             $table->id();
             $table->string('operation');
             $table->string('description');
-            $table->timestamps('created_at');
-            $table->foreign('user_id')
+            $table->timestamp('created_at');
+            
+            $table->unsignedBigInteger('users_id');
+            $table->foreign('users_id')
                 ->references('id')
-                ->on('user')
+                ->on('users')
                 ->onDelete('cascade');
         });
     }
