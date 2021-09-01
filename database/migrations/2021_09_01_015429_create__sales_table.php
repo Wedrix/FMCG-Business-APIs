@@ -25,6 +25,10 @@ class CreateSalesTable extends Migration
                 ->references('id')
                 ->on('user')
                 ->onDelete('cascade');
+            $table->foriegn('prod_id')
+                ->references('id')
+                ->on('product')
+                ->onDelete('cascade');
             $table->foriegn('reciept_id')
                 ->references('id')
                 ->on('reciept')

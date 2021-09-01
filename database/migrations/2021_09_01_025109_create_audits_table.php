@@ -15,7 +15,13 @@ class CreateAuditsTable extends Migration
     {
         Schema::create('audits', function (Blueprint $table) {
             $table->id();
-            $table->timestamps();
+            $table->string('operation');
+            $table->string('description');
+            $table->timestamps('created_at');
+            $table->foreign('user_id')
+                ->references('id')
+                ->on('user')
+                ->onDelete('cascade');
         });
     }
 
