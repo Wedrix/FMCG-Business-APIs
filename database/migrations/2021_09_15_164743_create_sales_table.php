@@ -15,23 +15,25 @@ class CreateSalesTable extends Migration
     {
         Schema::create('sales', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('quantity');
-            $table->timestamp('sales_date');
+            $table->unsignedInteger('quantity');
+            $table->unsignedDecimal('total');
+            $table->unsignedDecimal('discount');
+            $table->timestamp('created_at');
             
-            $table->unsignedBigInteger('shops_id');
-            $table->foreign('shops_id')
+            $table->unsignedBigInteger('shop_id');
+            $table->foreign('shop_id')
                 ->references('id')
                 ->on('shops')
                 ->onDelete('cascade');
                 
-            $table->unsignedBigInteger('users_id');
-            $table->foreign('users_id')
+            $table->unsignedBigInteger('user_id');
+            $table->foreign('user_id')
                 ->references('id')
                 ->on('users')
                 ->onDelete('cascade');
                 
-            $table->unsignedBigInteger('prod_id');
-            $table->foreign('prod_id')
+            $table->unsignedBigInteger('product_id');
+            $table->foreign('product_id')
                 ->references('id')
                 ->on('products')
                 ->onDelete('cascade');
@@ -40,7 +42,7 @@ class CreateSalesTable extends Migration
             $table->unsignedBigInteger('receipt_id');
             $table->foreign('receipt_id')
                 ->references('id')
-                ->on('receipt')
+                ->on('receipts')
                 ->onDelete('cascade');
         });
     }
