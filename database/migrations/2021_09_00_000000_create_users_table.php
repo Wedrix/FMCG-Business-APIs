@@ -3,7 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use app\Enum\Role;
 
 class CreateUsersTable extends Migration
 {
@@ -16,13 +15,19 @@ class CreateUsersTable extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('shop_id')->nullable();
             $table->string('username');
-            $table->string('name');
+            $table->string('full_name');
             $table->string('phone_number');
-            $table->string('role');
+            $table->enum('role', ['admin', 'super_admin', 'sales_man']);
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
+
+            $table->foreign('shop_id')
+                ->references('id')
+                ->on('shops')
+                ->onDelete('cascade');
         });
     }
 
