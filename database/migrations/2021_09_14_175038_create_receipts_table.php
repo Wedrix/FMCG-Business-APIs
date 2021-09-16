@@ -17,6 +17,7 @@ class CreateReceiptsTable extends Migration
             $table->id();
             $table->string('name');
             $table->string('phone_number');
+            
             $table->timestamps();
         });
     }

@@ -22,6 +22,9 @@ class CreateUsersTable extends Migration
             $table->enum('role', ['admin', 'super_admin', 'sales_man']);
             $table->string('password');
             $table->rememberToken();
+
+            $table->softDeletes();
+
             $table->timestamps();
 
             $table->foreign('shop_id')

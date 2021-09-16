@@ -18,7 +18,10 @@ class CreateSalesTable extends Migration
             $table->unsignedInteger('quantity');
             $table->unsignedDecimal('total');
             $table->unsignedDecimal('discount');
-            $table->timestamp('created_at');
+            
+            $table->softDeletes();
+
+            $table->timestamps();
             
             $table->unsignedBigInteger('shop_id');
             $table->foreign('shop_id')
