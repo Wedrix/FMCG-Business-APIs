@@ -16,6 +16,7 @@ class CreateShopProductTable extends Migration
         Schema::create('shop_product', function (Blueprint $table) {
             $table->unsignedBigInteger('shop_id');
             $table->unsignedBigInteger('product_id');
+            $table->unsignedInteger('quantity');
 
             $table->foreign('shop_id')
                 ->references('id')
