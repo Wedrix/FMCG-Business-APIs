@@ -8,7 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\SerializesModels;
 
-class LoginCredentials extends Textable implements ShouldQueue
+class LoginCredentialsTextMessage extends Textable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
