@@ -30,4 +30,11 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'wittyflow' => [
+        'base_uri' => env('WITTYFLOW_BASE_URI'),
+        'send_message_endpoint' => env('WITTYFLOW_SEND_MESSAGE_ENDPOINT'),
+        'app_id' => env('WITTYFLOW_APP_ID'),
+        'app_secret' => env('WITTYFLOW_APP_SECRET'),
+    ],
+
 ];
