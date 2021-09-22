@@ -19,7 +19,7 @@ class CreateAuditLogsTable extends Migration
             $table->string('operation');
             $table->string('description');
             
-            $table->timestamp('created_at');
+            $table->timestamp('created_at')->useCurrent();
             
             $table->foreign('user_id')
                 ->references('id')

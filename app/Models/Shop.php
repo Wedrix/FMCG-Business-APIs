@@ -10,6 +10,11 @@ class Shop extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $fillable = [
+        'name',
+        'address'
+    ];
+
     public function products()
     {
         return $this->belongsToMany(Product::class);

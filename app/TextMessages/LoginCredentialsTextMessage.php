@@ -14,18 +14,18 @@ class LoginCredentialsTextMessage extends Textable implements ShouldQueue
 
     private User $user;
 
-    private string $tempPassword;
+    private string $password;
 
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct(User $user, string $tempPassword)
+    public function __construct(User $user, string $password)
     {
         $this->user = $user;
 
-        $this->tempPassword = $tempPassword;
+        $this->password = $password;
     }
 
     /**
@@ -35,10 +35,10 @@ class LoginCredentialsTextMessage extends Textable implements ShouldQueue
      */
     public function build()
     {
-        return $this->from('Storekd Inc')
+        return $this->to($this->user->phone_number)
                     ->message(
                         "Hello ".$this->user->full_name.",\n".
-                        "Your login password is: ".$this->tempPassword
+                        "Your login password is: ".$this->password
                     );
     }
 }
