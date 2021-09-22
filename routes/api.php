@@ -9,6 +9,7 @@ use App\Models\Shop;
 use App\Models\User;
 use App\SMS\SMS;
 use App\TextMessages\LoginCredentialsTextMessage;
+use App\TextMessages\NewSaleTextMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
@@ -339,6 +340,12 @@ Route::middleware('auth:api')->group(function () {
             return Shop::onlyTrashed()->get();
         });
 
+        Route::get('/{shop}/sales', function (Request $request, Shop $shop) {
+            $beforeDate = now()->subDays(7);
+            
+            return $shop->sales()->where('created_at','>=',$beforeDate)->get();
+        });
+
         Route::post('/', function (Request $request) {
             Gate::authorize('admin');
 
@@ -423,6 +430,13 @@ Route::middleware('auth:api')->group(function () {
 
             return response('success', 200);
         });
+        Route::get('/{shop}/products', function (Request $request, Shop $shop) {
+            Gate::authorize('admin');
+
+            return $shop->products;
+        });
+    
+
 
         Route::post('/{shop}/products', function (Request $request, Shop $shop) {
             Gate::authorize('admin');
@@ -456,9 +470,63 @@ Route::middleware('auth:api')->group(function () {
         });
 
         Route::get('/deleted', function () {
-            Gate::authorize('admin');
-
             return Sale::onlyTrashed()->get();
+        });
+
+        Route::post('/',function(Request $request) {
+            $data = $request->validate([
+                'customer_name' => 'required|string|max:255',
+                'customer_phone' => 'required|string|max:255',
+                'shop_id'=> 'required|exists:shops,id',
+                'products' => 'required'
+            ]);
+
+            $shop = Shop::find($data['shop_id']);
+            $receipt = new Receipt($data);
+
+            foreach ($data['products'] as $shop_product){ 
+                $productId = $shop_product['id'];
+                $quantity = $shop_product['quantity'];
+                $discount = $shop_product['discount'];
+                
+                $product = $shop->products()->findOrFail($productId);
+            
+                if ($product->quantity < $quantity){
+                    return response("The requested quantity is not available for $product->name", 422);
+
+                }
+
+                $sale = new Sale();
+                $sale->product_id = $productId;
+                $sale->quantity = $quantity;
+                $sale->discount = $discount;
+                $sale->shop_id = $shop->id;
+                $sale->user_id = $request->user()->id;
+
+                $receipt->sales[] = $sale;
+    
+            }
+           
+            $receipt->push();
+
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Create Sale",
+                    'description' => "Created sale with receipt #'$receipt->id'"
+                ])
+            )
+            ->save();
+
+            SMS::from('Storekd Inc') //TODO: Change to Eben Gen after approval
+                ->send(
+                    new NewSaleTextMessage(
+                        receipt:$receipt,
+                    )
+                );
+
+            return $receipt;
+            
         });
 
         Route::post('/{saleId}/restore', function (Request $request, $saleId) {
