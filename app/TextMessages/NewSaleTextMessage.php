@@ -1,0 +1,41 @@
+<?php
+
+namespace App\TextMessages;
+
+use App\Models\Receipt;
+use App\SMS\Textable;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\SerializesModels;
+
+class NewSaleTextMessage extends Textable implements ShouldQueue
+{
+    use Queueable, SerializesModels;
+
+    private Receipt $receipt;
+
+    /**
+     * Create a new message instance.
+     *
+     * @return void
+     */
+    public function __construct(Receipt $receipt)
+    {
+        $this->receipt = $receipt;
+    }
+
+    /**
+     * Build the message.
+     *
+     * @return $this
+     */
+    public function build()
+    {
+        return $this->to($this->receipt->customer_phone)
+                    ->message(
+                        "Hello ".$this->receipt->customer_name.",\n".
+                        "Your purchase was successful.\n".
+                        "Your receipt number is : ".$this->receipt->id
+                    );
+    }
+}
