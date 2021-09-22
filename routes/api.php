@@ -3,11 +3,15 @@
 use App\Http\Controllers\AuthController;
 use App\Models\AuditLog;
 use App\Models\Product;
+use App\Models\Receipt;
 use App\Models\Sale;
 use App\Models\Shop;
 use App\Models\User;
+use App\SMS\SMS;
+use App\TextMessages\LoginCredentialsTextMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -52,10 +56,12 @@ Route::middleware('auth:api')->group(function () {
     
             $data = [];
     
-            for ($i = 1; $i < 8; $i++) {
-                $data[$i] = Sale::query()
-                                ->whereDate('created_at', now()->subDays($i))
-                                ->sum('total');
+            for ($i = 6; $i >= 0; $i--) {
+                $dayOfWeek = now()->subDays($i)->shortLocaleDayOfWeek;
+
+                $data[$dayOfWeek] = Sale::query()
+                                        ->whereDate('created_at', now()->subDays($i))
+                                        ->sum('total');
             }
     
             return $data;
@@ -64,12 +70,17 @@ Route::middleware('auth:api')->group(function () {
         Route::get('graph2', function () {
             Gate::authorize('admin');
     
-            $shopIds = Shop::query()->select('id')->get()->toArray();
+            $shops = Shop::query()->select('id','name')->get()->toArray();
     
-            return array_map(
-                fn(string $shopId) => Sale::query()->whereShopId($shopId)->sum('total'),
-                $shopIds
-            );
+            $data = [];
+
+            foreach ($shops as $shop) {
+                $data[$shop['name']] = Sale::query()
+                                            ->where('shop_id', $shop['id'])
+                                            ->sum('total');
+            }
+
+            return $data;
         });
     
         Route::get('audit_logs', function () {
@@ -95,13 +106,27 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/', function (Request $request) {
             Gate::authorize('admin');
 
-            // TODO: Validate Request
+            $data = $request->validate([
+                'name' => 'required|string|max:255',
+                'price' => 'required|numeric|min:0|max:1000000000',
+                'quantity' => 'required|numeric|min:0|max:1000000000',
+                'description' => 'string|nullable|max:1500'
+            ]);
 
-            // TODO: Create Product
+            $product = new Product($data);
 
-            // TODO: Add Audit Log
+            $product->save();
 
-            // TODO: Return Product
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Create Product",
+                    'description' => "Created '$product->name'"
+                ])
+            )
+            ->save();
+
+            return $product;
         });
 
         Route::post('/{productId}/restore', function (Request $request, $productId) {
@@ -111,7 +136,14 @@ Route::middleware('auth:api')->group(function () {
 
             $product->restore();
 
-            // TODO: Add Audit Log
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Restore Product",
+                    'description' => "Restored '$product->name'"
+                ])
+            )
+            ->save();
 
             return $product;
         });
@@ -119,11 +151,28 @@ Route::middleware('auth:api')->group(function () {
         Route::put('/{product}', function (Request $request, Product $product) {
             Gate::authorize('admin');
 
-            // TODO: Validate Request
+            $data = $request->validate([
+                'name' => 'string|max:255',
+                'price' => 'numeric|min:0|max:1000000000',
+                'quantity' => 'numeric|min:0|max:1000000000',
+                'description' => 'string|nullable|max:1500'
+            ]);
 
-            // TODO: Update Product
+            $product->name = $data['name'] ?? $product->name;
+            $product->price = $data['price'] ?? $product->price;
+            $product->quantity = $data['quantity'] ?? $product->quantity;
+            $product->description = $data['description'] ?? $product->description;
 
-            // TODO: Add Audit Log
+            $product->save();
+
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Update Product",
+                    'description' => "Updated '$product->name'"
+                ])
+            )
+            ->save();
 
             return $product;
         });
@@ -133,7 +182,14 @@ Route::middleware('auth:api')->group(function () {
 
             $product->delete();
 
-            // TODO: Add Audit Log
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Delete Product",
+                    'description' => "Deleted '$product->name'"
+                ])
+            )
+            ->save();
 
             return response('success', 200);
         });
@@ -155,19 +211,39 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/', function (Request $request) {
             Gate::authorize('super_admin');
 
-            // TODO: Validate Request
+            $data = $request->validate([
+                'full_name' => 'required|string|max:255',
+                'phone_number' => 'required|string|max:255',
+                'username' => 'required|string|max:255',
+                'password' => 'required|string|min:5',
+                'role' => 'required|in:admin,super_admin,sales_man',
+                'shop_id' => 'required_if:role,sales_man|numeric|exists:shops,id'
+            ]);
 
-            // TODO: Create User
+            $user = new User($data);
 
-            // TODO: Generate Temp Passowrd
+            $user->password = Hash::make($data['password']);
 
-            // TODO: Add User
+            $user->save();
 
-            // TODO: SMS User temp password
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Create User",
+                    'description' => "Created '$user->full_name' with role '$user->role'"
+                ])
+            )
+            ->save();
 
-            // TODO: Add Audit Log
+            SMS::from('Storekd Inc') //TODO: Change to Eben Gen after approval
+                ->send(
+                    new LoginCredentialsTextMessage(
+                        user: $user,
+                        password: $data['password']
+                    )
+                );
 
-            // TODO: return user
+            return $user;
         });
 
         Route::post('/{userId}/restore', function (Request $request, $userId) {
@@ -177,7 +253,14 @@ Route::middleware('auth:api')->group(function () {
 
             $user->restore();
 
-            // TODO: Add Audit Log
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Restore User",
+                    'description' => "Restored '$user->full_name'"
+                ])
+            )
+            ->save();
 
             return $user;
         });
@@ -185,11 +268,42 @@ Route::middleware('auth:api')->group(function () {
         Route::put('/{user}', function (Request $request, User $user) {
             Gate::authorize('super_admin');
 
-            // TODO: Validate Request
+            $data = $request->validate([
+                'full_name' => 'string|max:255',
+                'phone_number' => 'string|max:255',
+                'username' => 'string|max:255',
+                'password' => 'string|min:5',
+                'role' => 'in:admin,super_admin,sales_man',
+                'shop_id' => 'required_if:role,sales_man|numeric|exists:shops,id'
+            ]);
 
-            // Update User
+            $user->full_name = $data['full_name'] ?? $user->full_name;
+            $user->phone_number = $data['phone_number'] ?? $user->phone_number;
+            $user->username = $data['username'] ?? $user->username;
+            $user->password = isset($data['password']) ? Hash::make($data['password']) : $user->password;
+            $user->role = $data['role'] ?? $user->role;
+            $user->shop_id = $data['shop_id'] ?? $user->shop_id;
 
-            // TODO: Add Audit Log
+            $user->save();
+
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Update User",
+                    'description' => "Updated '$user->full_name'"
+                ])
+            )
+            ->save();
+
+            if (isset($data['password'])) {
+                SMS::from('Storekd Inc') //TODO: Change to Eben Gen after approval
+                    ->send(
+                        new LoginCredentialsTextMessage(
+                            user: $user,
+                            password: $data['password']
+                        )
+                    );
+            }
 
             return $user;
         });
@@ -199,7 +313,14 @@ Route::middleware('auth:api')->group(function () {
 
             $user->delete();
 
-            // TODO: Add Audit Log
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Delete User",
+                    'description' => "Deleted '$user->full_name'"
+                ])
+            )
+            ->save();
 
             return response('success', 200);
         });
@@ -221,23 +342,48 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/', function (Request $request) {
             Gate::authorize('admin');
 
-            // TODO: Validate Request
+            $data = $request->validate([
+                'name' => 'required|string|max:255',
+                'address' => 'required|string|max:255'
+            ]);
 
-            // TODO: Create Shop
+            $shop = new Shop($data);
 
-            // TODO: Add Audit Log
+            $shop->save();
 
-            // TODO: Return Shop
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Create Shop",
+                    'description' => "Created '$shop->name'"
+                ])
+            )
+            ->save();
+
+            return $shop;
         });
 
         Route::put('/{shop}', function (Request $request, Shop $shop) {
             Gate::authorize('admin');
 
-            // TODO: Validate Request
+            $data = $request->validate([
+                'name' => 'string|max:255',
+                'address' => 'string|max:255'
+            ]);
 
-            // TODO: Update User
+            $shop->name = $data['name'] ?? $shop->name;
+            $shop->address = $data['address'] ?? $shop->address;
 
-            // TODO: Add Audit Log
+            $shop->save();
+
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Update Shop",
+                    'description' => "Updated '$shop->name'"
+                ])
+            )
+            ->save();
 
             return $shop;
         });
@@ -249,7 +395,14 @@ Route::middleware('auth:api')->group(function () {
 
             $shop->restore();
 
-            // TODO: Add Audit Log
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Restore Shop",
+                    'description' => "Restored '$shop->name'"
+                ])
+            )
+            ->save();
 
             return $shop;
         });
@@ -259,16 +412,46 @@ Route::middleware('auth:api')->group(function () {
 
             $shop->delete();
 
-            // TODO: Add Audit Log
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Delete Shop",
+                    'description' => "Deleted '$shop->name'"
+                ])
+            )
+            ->save();
 
             return response('success', 200);
+        });
+
+        Route::post('/{shop}/products', function (Request $request, Shop $shop) {
+            Gate::authorize('admin');
+
+            // TODO: Validate Data:
+                // Check product ids exist
+                // Verify quantity available
+
+            // TODO: Add Shop Products
+
+            // TODO: Add Audit Log for each entry
+
+            // return shop
+
+            return $shop;
+        });
+    });
+
+    Route::prefix('receipts')->group(function () {
+        Route::get('/', function () {
+            return Receipt::with(['sales' => function ($query) {
+                $query->withThrashed();
+            }])
+            ->get();
         });
     });
     
     Route::prefix('sales')->group(function () {
         Route::get('/', function () {
-            Gate::authorize('admin');
-
             return Sale::all();
         });
 
@@ -285,19 +468,14 @@ Route::middleware('auth:api')->group(function () {
 
             $sale->restore();
 
-            // TODO: Add Audit Log
-
-            return $sale;
-        });
-
-        Route::put('/{sale}', function (Request $request, Sale $sale) {
-            Gate::authorize('admin');
-
-            // TODO: Validate Request
-
-            // TODO: Update Sale
-
-            // TODO: Add Audit Log
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Restore Sale",
+                    'description' => "Restored sale #'$sale->id'"
+                ])
+            )
+            ->save();
 
             return $sale;
         });
@@ -307,7 +485,18 @@ Route::middleware('auth:api')->group(function () {
 
             $sale->delete();
 
-            // TODO: Add Audit Log
+            $sale->product->quantity += $sale->quantity;
+
+            $sale->product->save();
+
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Delete Sale",
+                    'description' => "Deleted sale #'$sale->id'"
+                ])
+            )
+            ->save();
 
             return response('success', 200);
         });
