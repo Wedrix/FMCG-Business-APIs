@@ -573,14 +573,7 @@ Route::middleware('auth:api')->group(function () {
 
             $data = $request->validate([
                 'products' => 'required|array',
-                'products.*.id' => [
-                    'required',
-                    function ($attribute, $value, $fail) use ($shop) {
-                        if (is_null($shop->products()->find($value))) {
-                            $fail("$shop->name does not have any product with id '$value'");
-                        }
-                    },
-                ],
+                'products.*.id' => 'required',
                 'products.*.quantity' => 'required|numeric|max:1000000000'
             ]);
 
