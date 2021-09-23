@@ -237,7 +237,7 @@ Route::middleware('auth:api')->group(function () {
                 'shop_id' => 'required_if:role,sales_man'
             ]);
 
-            if (is_null(Shop::find($data['shop_id']))) {
+            if (isset($data['shop_id']) && is_null(Shop::find($data['shop_id']))) {
                 return response(status: 422)->json([
                     "message" => "The given data was invalid",
                     "error" => "The shop with id '{$data['shop_id']}' does not exist"
@@ -307,9 +307,7 @@ Route::middleware('auth:api')->group(function () {
                 'shop_id' => 'required_if:role,sales_man'
             ]);
 
-            $shopId = $data['shop_id'] ?? null;
-
-            if (is_null(Shop::find($shopId))) {
+            if (isset($data['shop_id']) && is_null(Shop::find($data['shop_id']))) {
                 return response(status: 422)->json([
                     "message" => "The given data was invalid",
                     "error" => "The shop with id '{$data['shop_id']}' does not exist"
