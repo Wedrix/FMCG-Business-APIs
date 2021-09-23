@@ -234,7 +234,7 @@ Route::middleware('auth:api')->group(function () {
                 'username' => 'required|string|max:255',
                 'password' => 'required|string|min:5',
                 'role' => 'required|in:admin,super_admin,sales_man',
-                'shop_id' => 'required_if:role,sales_man|numeric'
+                'shop_id' => 'required_if:role,sales_man'
             ]);
 
             if (is_null(Shop::find($data['shop_id']))) {
@@ -304,7 +304,7 @@ Route::middleware('auth:api')->group(function () {
                 'username' => 'string|max:255',
                 'password' => 'string|min:5',
                 'role' => 'in:admin,super_admin,sales_man',
-                'shop_id' => 'required_if:role,sales_man|numeric'
+                'shop_id' => 'required_if:role,sales_man'
             ]);
 
             if (is_null(Shop::find($data['shop_id']))) {
