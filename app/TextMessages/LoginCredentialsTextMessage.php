@@ -35,7 +35,8 @@ class LoginCredentialsTextMessage extends Textable implements ShouldQueue
      */
     public function build()
     {
-        return $this->to($this->user->phone_number)
+        return $this->from('Storekd Inc') // TODO: Change to Egen Gen after approval
+                    ->to($this->user->phone_number)
                     ->message(
                         "Hello ".$this->user->full_name.",\n".
                         "Your login password is: ".$this->password

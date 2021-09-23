@@ -31,11 +31,12 @@ class NewSaleTextMessage extends Textable implements ShouldQueue
      */
     public function build()
     {
-        return $this->to($this->receipt->customer_phone)
+        return $this->from('Storekd Inc') // TODO: Change to Egen Gen after approval
+                    ->to($this->receipt->customer_phone)
                     ->message(
                         "Hello ".$this->receipt->customer_name.",\n".
-                        "Your purchase was successful.\n".
-                        "Your receipt number is : ".$this->receipt->id
+                        "Thank you for purchasing at Eben Genesis.\n".
+                        "Your receipt number is: #0000{$this->receipt->id}."
                     );
     }
 }
