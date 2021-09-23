@@ -71,7 +71,10 @@ Route::middleware('auth:api')->group(function () {
         Route::get('graph2', function () {
             Gate::authorize('admin');
     
-            $shops = Shop::query()->select('id','name')->get()->toArray();
+            $shops = Shop::query()
+                        ->select('id','name')
+                        ->get()
+                        ->toArray();
     
             $data = [];
 
@@ -87,7 +90,11 @@ Route::middleware('auth:api')->group(function () {
         Route::get('audit_logs', function () {
             Gate::authorize('admin');
     
-            return AuditLog::query()->latest()->take(12)->get();
+            return AuditLog::query()
+                        ->with('user:id,full_name,username')
+                        ->latest()
+                        ->take(12)
+                        ->get();
         });
     });
 
@@ -136,7 +143,10 @@ Route::middleware('auth:api')->group(function () {
             $product = Product::onlyTrashed()->find($productId);
 
             if (is_null($product)) {
-                return response("No deleted product with id '$productId' exists", 422);
+                return response(status: 422)->json([
+                    "message" => "The given data was invalid",
+                    "error" => "No deleted product with id '$productId' exists"
+                ]);
             }
 
             $product->restore();
@@ -224,11 +234,14 @@ Route::middleware('auth:api')->group(function () {
                 'username' => 'required|string|max:255',
                 'password' => 'required|string|min:5',
                 'role' => 'required|in:admin,super_admin,sales_man',
-                'shop_id' => 'required_if:role,sales_man|numeric'
+                'shop_id' => 'required_if:role,sales_man'
             ]);
 
             if (is_null(Shop::find($data['shop_id']))) {
-                return response("The shop with id '{$data['shop_id']}' does not exist", 422);
+                return response(status: 422)->json([
+                    "message" => "The given data was invalid",
+                    "error" => "The shop with id '{$data['shop_id']}' does not exist"
+                ]);
             }
 
             $user = new User($data);
@@ -262,7 +275,10 @@ Route::middleware('auth:api')->group(function () {
             $user = User::onlyTrashed()->find($userId);
 
             if (is_null($user)) {
-                return response("No deleted user with id '$userId' exists", 422);
+                return response(status: 422)->json([
+                    "message" => "The given data was invalid",
+                    "error" => "No deleted user with id '$userId' exists"
+                ]);
             }
 
             $user->restore();
@@ -288,11 +304,14 @@ Route::middleware('auth:api')->group(function () {
                 'username' => 'string|max:255',
                 'password' => 'string|min:5',
                 'role' => 'in:admin,super_admin,sales_man',
-                'shop_id' => 'required_if:role,sales_man|numeric'
+                'shop_id' => 'required_if:role,sales_man'
             ]);
 
             if (is_null(Shop::find($data['shop_id']))) {
-                return response("The shop with id '{$data['shop_id']}' does not exist", 422);
+                return response(status: 422)->json([
+                    "message" => "The given data was invalid",
+                    "error" => "The shop with id '{$data['shop_id']}' does not exist"
+                ]);
             }
 
             $user->full_name = $data['full_name'] ?? $user->full_name;
@@ -358,12 +377,6 @@ Route::middleware('auth:api')->group(function () {
             return Shop::onlyTrashed()->get();
         });
 
-        Route::get('/{shop}/sales', function (Request $request, Shop $shop) {
-            $beforeDate = now()->subDays(7);
-            
-            return $shop->sales()->where('created_at','>=',$beforeDate)->get();
-        });
-
         Route::post('/', function (Request $request) {
             Gate::authorize('admin');
 
@@ -419,7 +432,10 @@ Route::middleware('auth:api')->group(function () {
             $shop = Shop::onlyTrashed()->find($shopId);
 
             if (is_null($shop)) {
-                return response("No deleted shop with id '$shopId' exists", 422);
+                return response(status: 422)->json([
+                    "message" => "The given data was invalid",
+                    "error" => "No deleted shop with id '$shopId' exists"
+                ]);
             }
 
             $shop->restore();
@@ -455,109 +471,25 @@ Route::middleware('auth:api')->group(function () {
             ];
         });
 
+        Route::get('/{shop}/sales', function (Request $request, Shop $shop) {
+            Gate::authorize('sales_man', $shop->id);
+
+            $beforeDate = now()->subDays(7);
+            
+            return $shop->sales()
+                        ->where('created_at','>=',$beforeDate)
+                        ->get();
+        });
+
         Route::get('/{shop}/products', function (Request $request, Shop $shop) {
-            Gate::authorize('admin');
+            Gate::authorize('sales_man', $shop->id);
 
             return $shop->products;
-        });
-    
-        Route::post('/{shop}/products', function (Request $request, Shop $shop) {
-            Gate::authorize('admin');
-
-            $data = $request->validate([
-                'products' => 'required|array',
-                'products.*.id' => [
-                    'required',
-                    function ($attribute, $value, $fail) use ($shop) {
-                        if (is_null($shop->products()->find($value))) {
-                            $fail("$shop->name does not have any product with id '$value'");
-                        }
-                    },
-                ],
-                'products.*.quantity' => 'required|numeric|max:1000000000'
-            ]);
-
-            foreach ($data['products'] as $shop_product) {
-                $productId = $shop_product['id'];
-                $quantity = $shop_product['quantity'];
-
-                $product = Product::find($productId);
-
-                if ($product->quantity < $quantity) {
-                    return response("Only $product->quantity units available for $product->name (id: $productId). 
-                    $quantity requested.", 422);
-                }
-
-                $shopProduct = $shop->products()->find($productId);
-
-                // If shop product is not available, we create the relationship,
-                // else we add the quantity
-                if (is_null($shopProduct)) {
-                    $shop->products()
-                        ->attach([
-                            $productId => ['quantity' => $quantity]
-                        ]);
-                }
-                else {
-                    $shopProduct->pivot->quantity += $quantity;
-
-                    $shopProduct->pivot->save();
-                }
-
-                $product->quantity -= $quantity;
-
-                $product->save();
-
-                (
-                    new AuditLog([
-                        'user_id' => $request->user()->id,
-                        'operation' => "Add Shop Product",
-                        'description' => "Added $product->name to $shop->name"
-                    ])
-                )
-                ->save();
-            }
-
-            return $shop->products;
-        });
-
-        Route::delete('/{shop}/products', function (Request $request, Shop $shop) {
-            Gate::authorize('admin');
-
-            $data = $request->validate([
-                'ids' => 'required|array'
-            ]);
-
-            foreach ($data['ids'] as $productId) {
-                $shopProduct = $shop->products()->find($productId);
-
-                if (!is_null($shopProduct)) {
-                    $product = Product::find($productId);
-    
-                    $product->quantity += $shopProduct->pivot->quantity;
-    
-                    $product->save();
-    
-                    $shop->products()
-                        ->detach($productId);
-    
-                    (
-                        new AuditLog([
-                            'user_id' => $request->user()->id,
-                            'operation' => "Delete Shop Product",
-                            'description' => "Removed $product->name from $shop->name"
-                        ])
-                    )
-                    ->save();
-                }
-            }
-
-            return [
-                "message" => "Success!"
-            ];
         });
 
         Route::post('/{shop}/sales',function(Request $request, Shop $shop) {
+            Gate::authorize('sales_man', $shop->id);
+
             $data = $request->validate([
                 'customer_name' => 'required|string|max:255',
                 'customer_phone' => 'required|string|max:255',
@@ -573,15 +505,20 @@ Route::middleware('auth:api')->group(function () {
                 'products.*.quantity' => 'required|numeric|max:1000000'
             ]);
 
-            foreach ($data['products'] as $shop_product) { 
+            foreach ($data['products'] as $index => $shop_product) { 
                 $productId = $shop_product['id'];
                 $quantity = $shop_product['quantity'];
                 
                 $shopProduct = $shop->products()->find($productId);
             
                 if ($shopProduct->pivot->quantity < $quantity) {
-                    return response("Only {$shopProduct->pivot->quantity} units available for {$shopProduct->shop->name} (id: '$productId'). 
-                    $quantity requested.", 422);
+                    return response(status: 422)->json([
+                        "message" => "The given data was invalid",
+                        "error" => [
+                            "products.$index.id" => "Only {$shopProduct->pivot->quantity} units available for this product. 
+                            $quantity requested."
+                        ]
+                    ]);
                 }
             }
             
@@ -628,54 +565,175 @@ Route::middleware('auth:api')->group(function () {
 
             return $receipt;
         });
+    
+        Route::post('/{shop}/products', function (Request $request, Shop $shop) {
+            Gate::authorize('sales_man', $shop->id);
+
+            $data = $request->validate([
+                'products' => 'required|array',
+                'products.*.id' => [
+                    'required',
+                    function ($attribute, $value, $fail) use ($shop) {
+                        if (is_null($shop->products()->find($value))) {
+                            $fail("$shop->name does not have any product with id '$value'");
+                        }
+                    },
+                ],
+                'products.*.quantity' => 'required|numeric|max:1000000000'
+            ]);
+
+            foreach ($data['products'] as $index => $shop_product) {
+                $productId = $shop_product['id'];
+                $quantity = $shop_product['quantity'];
+
+                $product = Product::find($productId);
+
+                if ($product->quantity < $quantity) {
+                    return response(status: 422)->json([
+                        "message" => "The given data was invalid",
+                        "error" => [
+                            "products.$index.quantity" => "Only $product->quantity units available for this product. 
+                            $quantity requested."
+                        ]
+                    ]);
+                }
+
+                $shopProduct = $shop->products()->find($productId);
+
+                // If shop product is not available, we create the relationship,
+                // else we add the quantity
+                if (is_null($shopProduct)) {
+                    $shop->products()
+                        ->attach([
+                            $productId => ['quantity' => $quantity]
+                        ]);
+                }
+                else {
+                    $shopProduct->pivot->quantity += $quantity;
+
+                    $shopProduct->pivot->save();
+                }
+
+                $product->quantity -= $quantity;
+
+                $product->save();
+
+                (
+                    new AuditLog([
+                        'user_id' => $request->user()->id,
+                        'operation' => "Add Shop Product",
+                        'description' => "Added $product->name to $shop->name"
+                    ])
+                )
+                ->save();
+            }
+
+            return $shop->products;
+        });
+
+        Route::delete('/{shop}/products', function (Request $request, Shop $shop) {
+            Gate::authorize('sales_man', $shop->id);
+
+            $data = $request->validate([
+                'ids' => 'required|array'
+            ]);
+
+            foreach ($data['ids'] as $productId) {
+                $shopProduct = $shop->products()->find($productId);
+
+                if (!is_null($shopProduct)) {
+                    $product = Product::find($productId);
+    
+                    $product->quantity += $shopProduct->pivot->quantity;
+    
+                    $product->save();
+    
+                    $shop->products()
+                        ->detach($productId);
+    
+                    (
+                        new AuditLog([
+                            'user_id' => $request->user()->id,
+                            'operation' => "Delete Shop Product",
+                            'description' => "Removed $product->name from $shop->name"
+                        ])
+                    )
+                    ->save();
+                }
+            }
+
+            return [
+                "message" => "Success!"
+            ];
+        });
     });
 
     Route::prefix('receipts')->group(function () {
         Route::get('/', function () {
-            return Receipt::with(['sales' => function ($query) {
-                $query->withThrashed();
-            }])
-            ->get();
+            Gate::authorize('admin');
+
+            return Receipt::query()
+                        ->with('sales', function ($query) {
+                            $query->withTrashed();
+                        })
+                        ->get();
         });
     });
     
     Route::prefix('sales')->group(function () {
         Route::get('/', function () {
+            Gate::authorize('admin');
+
             return Sale::all();
         });
 
         Route::get('/deleted', function () {
+            Gate::authorize('admin');
+
             return Sale::onlyTrashed()->get();
         });
 
         Route::post('/{saleId}/restore', function (Request $request, $saleId) {
             Gate::authorize('admin');
 
-            $sale = Sale::with(['product' => function ($query) {
-                            $query->withThrashed();
+            $sale = Sale::query()
+                        ->with(['product' => function ($query) {
+                            $query->withTrashed();
                         }])
                         ->with(['shop' => function ($query) {
-                            $query->withThrashed();
+                            $query->withTrashed();
                         }])
                         ->onlyTrashed()
                         ->find($saleId);
 
             if (is_null($sale)) {
-                return response("No deleted sale with id '$saleId' exists", 422);
+                return response(status: 422)->json([
+                    "message" => "The given data was invalid",
+                    "error" => "No deleted sale with id '$saleId' exists"
+                ]);
             }
 
             if ($sale->shop->trashed()) {
-                return response("Shop '{$sale->shop->name}' is no longer available", 422);
+                return response(status: 422)->json([
+                    "message" => "The given data was invalid",
+                    "error" => "Shop '{$sale->shop->name}' is no longer available"
+                ]);
             }
 
             if ($sale->product->trashed()) {
-                return response("Product '{$sale->product->name}' is no longer available for {$sale->shop->name}");
+                return response(status: 422)->json([
+                    "message" => "The given data was invalid",
+                    "error" => "Product '{$sale->product->name}' is no longer available for {$sale->shop->name}"
+                ]);
             }
 
             $shopProduct = $sale->shop->products()->find($sale->product->id);
 
             if ($shopProduct->pivot->quantity < $sale->quantity) {
-                return response("{$sale->shop->name} no longer has enough inventory for {$sale->product->name} to fulfil this order.", 422);
+                return response(status: 422)->json([
+                    "message" => "The given data was invalid",
+                    "error" => "{$sale->shop->name} no longer has enough inventory for {$sale->product->name} to fulfil this order"
+                ]);
             }
 
             $shopProduct->pivot->quantity -= $sale->quantity;
@@ -725,7 +783,9 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/', function () {
             Gate::authorize('admin');
 
-            return AuditLog::all();
+            return AuditLog::query()
+                        ->with('user:id,full_name,username')
+                        ->get();
         });
     });
 });
