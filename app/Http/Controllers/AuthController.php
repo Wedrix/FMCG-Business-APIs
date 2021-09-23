@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
@@ -18,6 +19,15 @@ class AuthController extends Controller
         if (!$token = Auth::attempt($credentials)) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
+
+        (
+            new AuditLog([
+                'user_id' => Auth::user()->id,
+                'operation' => "User Login",
+                'description' => Auth::user()->full_name." logged in"
+            ])
+        )
+        ->save();
 
         return $this->respondWithToken($token);
     }
@@ -39,6 +49,15 @@ class AuthController extends Controller
      */
     public function logout()
     {
+        (
+            new AuditLog([
+                'user_id' => Auth::user()->id,
+                'operation' => "User Logout",
+                'description' => Auth::user()->full_name." logged out"
+            ])
+        )
+        ->save();
+
         Auth::logout();
 
         return response()->json(['message' => 'Successfully logged out']);
