@@ -18,6 +18,8 @@ class CreateProductShopTable extends Migration
             $table->unsignedBigInteger('product_id');
             $table->unsignedInteger('quantity');
 
+            $table->primary(['shop_id', 'product_id']);
+
             $table->foreign('shop_id')
                 ->references('id')
                 ->on('shops')

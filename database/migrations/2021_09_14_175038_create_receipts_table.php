@@ -15,8 +15,8 @@ class CreateReceiptsTable extends Migration
     {
         Schema::create('receipts', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('phone_number');
+            $table->string('customer_name');
+            $table->string('customer_phone');
             
             $table->timestamps();
         });
