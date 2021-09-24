@@ -46,8 +46,8 @@ Route::middleware('auth:api')->group(function () {
                 'total_shops' => Shop::query()->count(),
                 'total_users' => User::query()->count(),
                 'total_month_sales' => Sale::query()
-                                            ->whereYear('created_at', now()->year())
-                                            ->whereMonth('created_at', now()->month())
+                                            ->whereYear('created_at', now()->year)
+                                            ->whereMonth('created_at', now()->month)
                                             ->sum('total'),
             ];
         });
@@ -493,7 +493,7 @@ Route::middleware('auth:api')->group(function () {
             
             return $shop->sales()
                         ->with('shop:id,name')
-                        ->with('product:id,name')
+                        ->with('product:id,name,price')
                         ->with('user:id,full_name,username')
                         ->where('created_at','>=',$beforeDate)
                         ->get();
@@ -505,7 +505,7 @@ Route::middleware('auth:api')->group(function () {
             return $shop->sales()
                         ->onlyTrashed()
                         ->with('shop:id,name')
-                        ->with('product:id,name')
+                        ->with('product:id,name,price')
                         ->with('user:id,full_name,username')
                         ->get();
         });
@@ -845,7 +845,7 @@ Route::middleware('auth:api')->group(function () {
                         ->with('sales', function ($query) {
                             $query->withTrashed()
                                 ->with('shop:id,name')
-                                ->with('product:id,name')
+                                ->with('product:id,name,price')
                                 ->with('user:id,full_name,username');
                         })
                         ->get();
@@ -858,7 +858,7 @@ Route::middleware('auth:api')->group(function () {
 
             return Sale::query()
                         ->with('shop:id,name')
-                        ->with('product:id,name')
+                        ->with('product:id,name,price')
                         ->with('user:id,full_name,username')
                         ->get();
         });
@@ -868,7 +868,7 @@ Route::middleware('auth:api')->group(function () {
 
             return Sale::onlyTrashed()
                         ->with('shop:id,name')
-                        ->with('product:id,name')
+                        ->with('product:id,name,price')
                         ->with('user:id,full_name,username')
                         ->get();
         });
