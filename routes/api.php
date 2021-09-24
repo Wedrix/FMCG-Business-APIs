@@ -143,10 +143,13 @@ Route::middleware('auth:api')->group(function () {
             $product = Product::onlyTrashed()->find($productId);
 
             if (is_null($product)) {
-                return response(status: 422)->json([
-                    "message" => "The given data was invalid",
-                    "error" => "No deleted product with id '$productId' exists"
-                ]);
+                return response()->json(
+                    data: [
+                        "message" => "The given data was invalid",
+                        "error" => "No deleted product with id '$productId' exists"
+                    ],
+                    status:422
+                );
             }
 
             $product->restore();
@@ -238,10 +241,13 @@ Route::middleware('auth:api')->group(function () {
             ]);
 
             if (isset($data['shop_id']) && is_null(Shop::find($data['shop_id']))) {
-                return response(status: 422)->json([
-                    "message" => "The given data was invalid",
-                    "error" => "The shop with id '{$data['shop_id']}' does not exist"
-                ]);
+                return response()->json(
+                    data: [
+                        "message" => "The given data was invalid",
+                        "error" => "The shop with id '{$data['shop_id']}' does not exist"
+                    ],
+                    status:422
+                );
             }
 
             $user = new User($data);
@@ -275,10 +281,13 @@ Route::middleware('auth:api')->group(function () {
             $user = User::onlyTrashed()->find($userId);
 
             if (is_null($user)) {
-                return response(status: 422)->json([
-                    "message" => "The given data was invalid",
-                    "error" => "No deleted user with id '$userId' exists"
-                ]);
+                return response()->json(
+                    data: [
+                        "message" => "The given data was invalid",
+                        "error" => "No deleted user with id '$userId' exists"
+                    ],
+                    status:422
+                );
             }
 
             $user->restore();
@@ -308,10 +317,13 @@ Route::middleware('auth:api')->group(function () {
             ]);
 
             if (isset($data['shop_id']) && is_null(Shop::find($data['shop_id']))) {
-                return response(status: 422)->json([
-                    "message" => "The given data was invalid",
-                    "error" => "The shop with id '{$data['shop_id']}' does not exist"
-                ]);
+                return response()->json(
+                    data: [
+                        "message" => "The given data was invalid",
+                        "error" => "The shop with id '{$data['shop_id']}' does not exist"
+                    ],
+                    status:422
+                );
             }
 
             $user->full_name = $data['full_name'] ?? $user->full_name;
@@ -432,10 +444,13 @@ Route::middleware('auth:api')->group(function () {
             $shop = Shop::onlyTrashed()->find($shopId);
 
             if (is_null($shop)) {
-                return response(status: 422)->json([
-                    "message" => "The given data was invalid",
-                    "error" => "No deleted shop with id '$shopId' exists"
-                ]);
+                return response()->json(
+                    data: [
+                        "message" => "The given data was invalid",
+                        "error" => "No deleted shop with id '$shopId' exists"
+                    ],
+                    status:422
+                );
             }
 
             $shop->restore();
@@ -520,13 +535,16 @@ Route::middleware('auth:api')->group(function () {
                 $shopProduct = $shop->products()->find($productId);
             
                 if ($shopProduct->pivot->quantity < $quantity) {
-                    return response(status: 422)->json([
-                        "message" => "The given data was invalid",
-                        "error" => [
-                            "products.$index.id" => "Only {$shopProduct->pivot->quantity} units available for this product. 
-                            $quantity requested."
-                        ]
-                    ]);
+                    return response()->json(
+                        data: [
+                            "message" => "The given data was invalid",
+                            "error" => [
+                                "products.$index.id" => "Only {$shopProduct->pivot->quantity} units available for this product. 
+                                $quantity requested."
+                            ]
+                        ],
+                        status:422
+                    );
                 }
             }
             
@@ -580,10 +598,13 @@ Route::middleware('auth:api')->group(function () {
             $sale = $shop->sales()->find($saleId);
 
             if (is_null($sale)) {
-                return response(status: 422)->json([
-                    "message" => "The given data was invalid",
-                    "error" => "No sale with id '$saleId' exists for $shop->name"
-                ]);
+                return response()->json(
+                    data: [
+                        "message" => "The given data was invalid",
+                        "error" => "No sale with id '$saleId' exists for $shop->name"
+                    ],
+                    status:422
+                );
             }
 
             $shopProduct = $shop->products()->where('product_id', $sale->product->id)->first();
@@ -622,26 +643,35 @@ Route::middleware('auth:api')->group(function () {
                         ->find($saleId);
 
             if (is_null($sale)) {
-                return response(status: 422)->json([
-                    "message" => "The given data was invalid",
-                    "error" => "No deleted sale with id '$saleId' exists for $shop->name"
-                ]);
+                return response()->json(
+                    data: [
+                        "message" => "The given data was invalid",
+                        "error" => "No deleted sale with id '$saleId' exists for $shop->name"
+                    ],
+                    status:422
+                );
             }
 
             if ($sale->product->trashed()) {
-                return response(status: 422)->json([
-                    "message" => "Product Unavailable",
-                    "error" => "{$sale->product->name} is no longer available for $shop->name"
-                ]);
+                return response()->json(
+                    data: [
+                        "message" => "Product Unavailable",
+                        "error" => "{$sale->product->name} is no longer available for $shop->name"
+                    ],
+                    status:422
+                );
             }
 
             $shopProduct = $shop->products()->find($sale->product->id);
 
             if ($shopProduct->pivot->quantity < $sale->quantity) {
-                return response(status: 422)->json([
-                    "message" => "Not Enough Inventory",
-                    "error" => "$shop->name no longer has enough inventory for {$sale->product->name} to fulfil this order"
-                ]);
+                return response()->json(
+                    data: [
+                        "message" => "Not Enough Inventory",
+                        "error" => "$shop->name no longer has enough inventory for {$sale->product->name} to fulfil this order"
+                    ],
+                    status:422
+                );
             }
 
             $shopProduct->pivot->quantity -= $sale->quantity;
@@ -683,13 +713,16 @@ Route::middleware('auth:api')->group(function () {
                 $product = Product::find($productId);
 
                 if ($product->quantity < $quantity) {
-                    return response(status: 422)->json([
-                        "message" => "The given data was invalid",
-                        "error" => [
-                            "products.$index.quantity" => "Only $product->quantity units available for this product. 
-                            $quantity requested."
-                        ]
-                    ]);
+                    return response()->json(
+                        data: [
+                            "message" => "The given data was invalid",
+                            "error" => [
+                                "products.$index.quantity" => "Only $product->quantity units available for this product. 
+                                $quantity requested."
+                            ]
+                        ],
+                        status:422
+                    );
                 }
             }
 
@@ -749,13 +782,16 @@ Route::middleware('auth:api')->group(function () {
 
                 if (!is_null($quantity)) {
                     if ($shopProduct->quantity < $quantity) {
-                        return response(status: 422)->json([
-                            "message" => "The given data was invalid",
-                            "error" => [
-                                "products.$index.quantity" => "Only $shopProduct->quantity units available for this product. 
-                                $quantity requested."
-                            ]
-                        ]);
+                        return response()->json(
+                            data: [
+                                "message" => "The given data was invalid",
+                                "error" => [
+                                    "products.$index.quantity" => "Only $shopProduct->quantity units available for this product. 
+                                    $quantity requested."
+                                ]
+                            ],
+                            status:422
+                        );
                     }
                 }
             }
@@ -851,33 +887,45 @@ Route::middleware('auth:api')->group(function () {
                         ->find($saleId);
 
             if (is_null($sale)) {
-                return response(status: 422)->json([
-                    "message" => "The given data was invalid",
-                    "error" => "No deleted sale with id '$saleId' exists"
-                ]);
+                return response()->json(
+                    data: [
+                        "message" => "The given data was invalid",
+                        "error" => "No deleted sale with id '$saleId' exists"
+                    ],
+                    status:422
+                );
             }
 
             if ($sale->shop->trashed()) {
-                return response(status: 422)->json([
-                    "message" => "The given data was invalid",
-                    "error" => "Shop '{$sale->shop->name}' is no longer available"
-                ]);
+                return response()->json(
+                    data: [
+                        "message" => "The given data was invalid",
+                        "error" => "Shop '{$sale->shop->name}' is no longer available"
+                    ],
+                    status:422
+                );
             }
 
             if ($sale->product->trashed()) {
-                return response(status: 422)->json([
-                    "message" => "The given data was invalid",
-                    "error" => "Product '{$sale->product->name}' is no longer available for {$sale->shop->name}"
-                ]);
+                return response()->json(
+                    data: [
+                        "message" => "The given data was invalid",
+                        "error" => "Product '{$sale->product->name}' is no longer available for {$sale->shop->name}"
+                    ],
+                    status:422
+                );
             }
 
             $shopProduct = $sale->shop->products()->find($sale->product->id);
 
             if ($shopProduct->pivot->quantity < $sale->quantity) {
-                return response(status: 422)->json([
-                    "message" => "The given data was invalid",
-                    "error" => "{$sale->shop->name} no longer has enough inventory for {$sale->product->name} to fulfil this order"
-                ]);
+                return response()->json(
+                    data: [
+                        "message" => "The given data was invalid",
+                        "error" => "{$sale->shop->name} no longer has enough inventory for {$sale->product->name} to fulfil this order"
+                    ],
+                    status:422
+                );
             }
 
             $shopProduct->pivot->quantity -= $sale->quantity;
