@@ -477,6 +477,9 @@ Route::middleware('auth:api')->group(function () {
             $beforeDate = now()->subDays(7);
             
             return $shop->sales()
+                        ->with('shop:id,name')
+                        ->with('product:id,name')
+                        ->with('user:id,full_name,username')
                         ->where('created_at','>=',$beforeDate)
                         ->get();
         });
@@ -704,7 +707,10 @@ Route::middleware('auth:api')->group(function () {
 
             return Receipt::query()
                         ->with('sales', function ($query) {
-                            $query->withTrashed();
+                            $query->withTrashed()
+                                ->with('shop:id,name')
+                                ->with('product:id,name')
+                                ->with('user:id,full_name,username');
                         })
                         ->get();
         });
@@ -714,13 +720,21 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/', function () {
             Gate::authorize('admin');
 
-            return Sale::all();
+            return Sale::query()
+                        ->with('shop:id,name')
+                        ->with('product:id,name')
+                        ->with('user:id,full_name,username')
+                        ->get();
         });
 
         Route::get('/deleted', function () {
             Gate::authorize('admin');
 
-            return Sale::onlyTrashed()->get();
+            return Sale::onlyTrashed()
+                        ->with('shop:id,name')
+                        ->with('product:id,name')
+                        ->with('user:id,full_name,username')
+                        ->get();
         });
 
         Route::post('/{saleId}/restore', function (Request $request, $saleId) {
