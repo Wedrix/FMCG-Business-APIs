@@ -31,7 +31,7 @@ class NewSaleTextMessage extends Textable implements ShouldQueue
      */
     public function build()
     {
-        return $this->from('Storekd Inc') // TODO: Change to Egen Gen after approval
+        return $this->from('Eben Gen')
                     ->to($this->receipt->customer_phone)
                     ->message(
                         "Hello ".$this->receipt->customer_name.",\n".
