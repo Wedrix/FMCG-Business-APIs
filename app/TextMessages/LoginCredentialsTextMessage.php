@@ -38,8 +38,10 @@ class LoginCredentialsTextMessage extends Textable implements ShouldQueue
         return $this->from('Eben Gen')
                     ->to($this->user->phone_number)
                     ->message(
-                        "Hello ".$this->user->full_name.",\n".
-                        "Your login password is: ".$this->password
+                        "Hello {$this->user->full_name}, \n".
+                        "Kindly find your login credentials below: \n\n".
+                        "Username: {$this->user->username} \n".
+                        "Password: {$this->password}"
                     );
     }
 }
