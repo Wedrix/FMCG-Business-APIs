@@ -477,6 +477,9 @@ Route::middleware('auth:api')->group(function () {
             $beforeDate = now()->subDays(7);
             
             return $shop->sales()
+                        ->with('shop:id,name')
+                        ->with('product:id,name')
+                        ->with('user:id,full_name,username')
                         ->where('created_at','>=',$beforeDate)
                         ->get();
         });
@@ -590,6 +593,13 @@ Route::middleware('auth:api')->group(function () {
                         ]
                     ]);
                 }
+            }
+
+            foreach ($data['products'] as $index => $shop_product) {
+                $productId = $shop_product['id'];
+                $quantity = $shop_product['quantity'];
+
+                $product = Product::find($productId);
 
                 $shopProduct = $shop->products()->find($productId);
 
@@ -628,22 +638,54 @@ Route::middleware('auth:api')->group(function () {
             Gate::authorize('sales_man', $shop->id);
 
             $data = $request->validate([
-                'ids' => 'required|array'
+                'products' => 'required|array',
+                'products.*.id' => 'required',
+                'products.*.quantity' => 'numeric|max:1000000000'
             ]);
 
-            foreach ($data['ids'] as $productId) {
+            foreach ($data['products'] as $index => $shop_product) {
+                $productId = $shop_product['id'];
+                $quantity = $shop_product['quantity'] ?? null;
+
+                $shopProduct = $shop->products()->find($productId);
+
+                if (!is_null($quantity)) {
+                    if ($shopProduct->quantity < $quantity) {
+                        return response(status: 422)->json([
+                            "message" => "The given data was invalid",
+                            "error" => [
+                                "products.$index.quantity" => "Only $shopProduct->quantity units available for this product. 
+                                $quantity requested."
+                            ]
+                        ]);
+                    }
+                }
+            }
+
+            foreach ($data['products'] as $index => $shop_product) {
+                $productId = $shop_product['id'];
+                $quantity = $shop_product['quantity'] ?? null;
+
+                $product = Product::find($productId);
+
                 $shopProduct = $shop->products()->find($productId);
 
                 if (!is_null($shopProduct)) {
-                    $product = Product::find($productId);
-    
-                    $product->quantity += $shopProduct->pivot->quantity;
-    
-                    $product->save();
-    
-                    $shop->products()
-                        ->detach($productId);
-    
+                    if (!is_null($quantity) && ($quantity < $shopProduct->pivot->quantity)) {
+                        $shopProduct->pivot->quantity -= $quantity;
+                        $shopProduct->pivot->save();
+
+                        $product->quantity += $quantity;
+                        $product->save();
+                    }
+                    else {
+                        $product->quantity += $shopProduct->pivot->quantity;
+                        $product->save();
+        
+                        $shop->products()
+                            ->detach($productId);
+                    }
+
                     (
                         new AuditLog([
                             'user_id' => $request->user()->id,
@@ -655,9 +697,7 @@ Route::middleware('auth:api')->group(function () {
                 }
             }
 
-            return [
-                "message" => "Success!"
-            ];
+            return $shop->products;
         });
     });
 
@@ -667,7 +707,10 @@ Route::middleware('auth:api')->group(function () {
 
             return Receipt::query()
                         ->with('sales', function ($query) {
-                            $query->withTrashed();
+                            $query->withTrashed()
+                                ->with('shop:id,name')
+                                ->with('product:id,name')
+                                ->with('user:id,full_name,username');
                         })
                         ->get();
         });
@@ -677,13 +720,21 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/', function () {
             Gate::authorize('admin');
 
-            return Sale::all();
+            return Sale::query()
+                        ->with('shop:id,name')
+                        ->with('product:id,name')
+                        ->with('user:id,full_name,username')
+                        ->get();
         });
 
         Route::get('/deleted', function () {
             Gate::authorize('admin');
 
-            return Sale::onlyTrashed()->get();
+            return Sale::onlyTrashed()
+                        ->with('shop:id,name')
+                        ->with('product:id,name')
+                        ->with('user:id,full_name,username')
+                        ->get();
         });
 
         Route::post('/{saleId}/restore', function (Request $request, $saleId) {
