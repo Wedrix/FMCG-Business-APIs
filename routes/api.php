@@ -234,7 +234,7 @@ Route::middleware('auth:api')->group(function () {
             $data = $request->validate([
                 'full_name' => 'required|string|max:255',
                 'phone_number' => 'required|string|max:255',
-                'username' => 'required|string|max:255',
+                'username' => 'required|string|max:255|unique:users,username',
                 'password' => 'required|string|min:5',
                 'role' => 'required|in:admin,super_admin,sales_man',
                 'shop_id' => 'required_if:role,sales_man'

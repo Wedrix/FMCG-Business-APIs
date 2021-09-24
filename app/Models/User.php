@@ -15,6 +15,13 @@ class User extends Authenticatable implements JWTSubject
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     /**
+     * The relationships that should always be loaded.
+     *
+     * @var array
+     */
+    protected $with = ['shop:id,name'];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var string[]
@@ -68,7 +75,7 @@ class User extends Authenticatable implements JWTSubject
 
     public function shop()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Shop::class);
     }
 
     public function auditLogs()
