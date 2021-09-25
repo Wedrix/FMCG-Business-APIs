@@ -25,4 +25,9 @@ class Shop extends Model
     {
         return $this->hasMany(Sale::class);
     }
+
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class);
+    }
 }

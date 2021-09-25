@@ -82,4 +82,9 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany(AuditLog::class);
     }
+
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class);
+    }
 }
