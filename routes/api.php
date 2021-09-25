@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Models\AuditLog;
+use App\Models\Expense;
 use App\Models\Product;
 use App\Models\Receipt;
 use App\Models\Sale;
@@ -45,13 +46,29 @@ Route::middleware('auth:api')->group(function () {
                 'total_products' => Product::query()->count(),
                 'total_shops' => Shop::query()->count(),
                 'total_users' => User::query()->count(),
-                'total_month_sales' => Sale::query()
-                                            ->whereYear('created_at', now()->year)
-                                            ->whereMonth('created_at', now()->month)
-                                            ->sum('total'),
+                'total_month_income' => (function () {
+                    $today = now();
+                    $year = $today->year;
+                    $month = $today->month;
+
+                    $totalSales = Sale::query()
+                                    ->whereYear('created_at', $year)
+                                    ->whereMonth('created_at', $month)
+                                    ->sum('total');
+        
+                    $totalExpenses = Expense::query()
+                                            ->whereYear('created_at', $year)
+                                            ->whereMonth('created_at', $month)
+                                            ->sum('amount');
+
+                    $totalIncome = $totalSales - $totalExpenses;
+
+                    return $totalIncome;
+                })(),
             ];
         });
     
+        // Total Daily Sales For The Week
         Route::get('graph1', function () {
             Gate::authorize('admin');
     
@@ -68,8 +85,11 @@ Route::middleware('auth:api')->group(function () {
             return $data;
         });
     
+        // Today's Shops' Total Sales
         Route::get('graph2', function () {
             Gate::authorize('admin');
+
+            $today = now();
     
             $shops = Shop::query()
                         ->select('id','name')
@@ -81,7 +101,63 @@ Route::middleware('auth:api')->group(function () {
             foreach ($shops as $shop) {
                 $data[$shop['name']] = Sale::query()
                                             ->where('shop_id', $shop['id'])
+                                            ->whereDate('created_at', $today)
                                             ->sum('total');
+            }
+
+            return $data;
+        });
+
+        // Today's Shops' Total Expenses
+        Route::get('graph3', function () {
+            Gate::authorize('admin');
+
+            $today = now();
+    
+            $shops = Shop::query()
+                        ->select('id','name')
+                        ->get()
+                        ->toArray();
+    
+            $data = [];
+
+            foreach ($shops as $shop) {
+                $data[$shop['name']] = Expense::query()
+                                            ->where('shop_id', $shop['id'])
+                                            ->whereDate('created_at', $today)
+                                            ->sum('amount');
+            }
+
+            return $data;
+        });
+
+        // Today's Shops' Total Income
+        Route::get('graph4', function () {
+            Gate::authorize('admin');
+
+            $today = now();
+    
+            $shops = Shop::query()
+                        ->select('id','name')
+                        ->get()
+                        ->toArray();
+    
+            $data = [];
+
+            foreach ($shops as $shop) {
+                $totalSales = Sale::query()
+                                ->where('shop_id', $shop['id'])
+                                ->whereDate('created_at', $today)
+                                ->sum('total');
+
+                $totalExpenses = Expense::query()
+                                        ->where('shop_id', $shop['id'])
+                                        ->whereDate('created_at', $today)
+                                        ->sum('amount');
+
+                $totalIncome = $totalSales - $totalExpenses;
+
+                $data[$shop['name']] = $totalIncome;
             }
 
             return $data;
@@ -695,6 +771,96 @@ Route::middleware('auth:api')->group(function () {
             Gate::authorize('sales_man', $shop->id);
 
             return $shop->products;
+        });
+
+        Route::get('/{shop}/expenses', function (Request $request, Shop $shop) {
+            Gate::authorize('sales_man', $shop->id);
+
+            return $shop->expenses;
+        });
+
+        Route::post('/{shop}/expenses', function (Request $request, Shop $shop) {
+            Gate::authorize('sales_man', $shop->id);
+
+            $data = $request->validate([
+                'amount' => 'required|numeric|max:1000000',
+                'purpose' => 'required|string|max:255'
+            ]);
+
+            $todaysShopIncome = (function () use ($shop) {
+                $today = now();
+
+                $todaysShopSales = Sale::query()
+                                        ->where('shop_id', $shop->id)
+                                        ->whereDate('created_at', $today)
+                                        ->sum('total');
+
+                $todaysShopExpenses = Expense::query()
+                                            ->where('shop_id', $shop->id)
+                                            ->whereDate('created_at', $today)
+                                            ->sum('amount');
+
+                $income = $todaysShopSales - $todaysShopExpenses;
+
+                return $income;
+            })();
+
+            if ($todaysShopIncome < $data['amount']) {
+                return response()->json(
+                    data: [
+                        "message" => "The given data was invalid",
+                        "error" => "{$data['amount']} is more than today's income for $shop->name"
+                    ],
+                    status:422
+                );
+            }
+
+            $expense = new Expense($data);
+            $expense->user_id = $request->user()->id;
+            $expense->shop_id = $shop->id;
+            $expense->save();
+
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Create Expense",
+                    'description' => "Created expense for {$expense->shop->name}. Purpose: $expense->purpose, Amount: $expense->amount"
+                ])
+            )
+            ->save();
+
+            return $expense;
+        });
+
+        Route::delete('/{shop}/expenses/{expenseId}', function (Request $request, Shop $shop, $expenseId) {
+            Gate::authorize('sales_man', $shop->id);
+
+            $expense = $shop->expenses()->find($expenseId);
+
+            if (is_null($expense)) {
+                return response()->json(
+                    data: [
+                        "message" => "The given data was invalid",
+                        "error" => "No expense with id '$expenseId' exists for $shop->name"
+                    ],
+                    status:422
+                );
+            }
+
+            $expense->delete();
+
+            (
+                new AuditLog([
+                    'user_id' => $request->user()->id,
+                    'operation' => "Deleted Expense",
+                    'description' => "Deleted expense for {$expense->shop->name}. Purpose: $expense->purpose, Amount: $expense->amount"
+                ])
+            )
+            ->save();
+
+            return [
+                "message" => "Success!"
+            ];
         });
     
         Route::post('/{shop}/products', function (Request $request, Shop $shop) {
