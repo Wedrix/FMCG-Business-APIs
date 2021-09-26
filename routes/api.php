@@ -1137,6 +1137,14 @@ Route::middleware('auth:api')->group(function () {
         });
     });
 
+    Route::prefix('expenses')->group(function () {
+        Route::get('/', function () {
+            Gate::authorize('admin');
+
+            return Expense::withTrashed()->get();
+        });
+    });
+
     Route::prefix('audit_logs')->group(function () {
         Route::get('/', function () {
             Gate::authorize('admin');

@@ -20,6 +20,8 @@ class CreateExpensesTable extends Migration
             $table->unsignedDecimal('amount');
             $table->string('purpose');
 
+            $table->softDeletes();
+
             $table->timestamps();
 
             $table->foreign('user_id')
