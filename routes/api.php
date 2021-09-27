@@ -295,13 +295,16 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/', function () {
             Gate::authorize('super_admin');
 
-            return User::all();
+            return User::with('shop:id,name')
+                        ->get();
         });
 
         Route::get('/deleted', function () {
             Gate::authorize('super_admin');
 
-            return User::onlyTrashed()->get();
+            return User::with('shop:id,name')
+                        ->onlyTrashed()
+                        ->get();
         });
 
         Route::post('/', function (Request $request) {
