@@ -776,7 +776,10 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/{shop}/expenses', function (Request $request, Shop $shop) {
             Gate::authorize('sales_man', $shop->id);
 
-            return $shop->expenses;
+            return $shop->expenses()
+                        ->with('user:id,full_name')
+                        ->with('shop:id,name')
+                        ->get();
         });
 
         Route::post('/{shop}/expenses', function (Request $request, Shop $shop) {
@@ -877,6 +880,18 @@ Route::middleware('auth:api')->group(function () {
                 $quantity = $shop_product['quantity'];
 
                 $product = Product::find($productId);
+
+                if (is_null($product)) {
+                    return response()->json(
+                        data: [
+                            "message" => "The given data was invalid",
+                            "error" => [
+                                "products.$index.quantity" => "No product with id '$productId' exists."
+                            ]
+                        ],
+                        status:422
+                    );
+                }
 
                 if ($product->quantity < $quantity) {
                     return response()->json(
@@ -1141,7 +1156,10 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/', function () {
             Gate::authorize('admin');
 
-            return Expense::withTrashed()->get();
+            return Expense::withTrashed()
+                        ->with('user:id,full_name')
+                        ->with('shop:id,name')
+                        ->get();
         });
     });
 
