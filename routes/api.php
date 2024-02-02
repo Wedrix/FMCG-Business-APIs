@@ -35,79 +35,48 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:api')->group(function () {
     Route::prefix('summary')->group(function () {
         Route::get('/', [SummaryController::class, 'index']);
-    
         Route::get('graph1', [SummaryController::class, 'graph1']);
-    
         Route::get('graph2', [SummaryController::class, 'graph2']);
-
         Route::get('graph3', [SummaryController::class, 'graph3']);
-
         Route::get('graph4', [SummaryController::class, 'graph4']);
-    
         Route::get('audit_logs', [SummaryController::class, 'indexAuditLogs']);
     });
 
     Route::prefix('products')->group(function () {
         Route::get('/', [ProductController::class, 'index']);
-
         Route::get('/deleted', [ProductController::class, 'indexDeleted']);
-
         Route::post('/', [ProductController::class, 'create']);
-
         Route::post('/{productId}/restore', [ProductController::class, 'restore']);
-
         Route::put('/{product}', [ProductController::class, 'update']);
-
         Route::delete('/{product}', [ProductController::class, 'delete']);
     });
 
     Route::prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index']);
-
         Route::get('/deleted', [UserController::class, 'indexDeleted']);
-
         Route::post('/', [UserController::class, 'create']);
-
         Route::post('/{userId}/restore', [UserController::class, 'restore']);
-
         Route::put('/{user}', [UserController::class, 'update']);
-
         Route::delete('/{user}', [UserController::class, 'delete']);
     });
 
     Route::prefix('shops')->group(function () {
         Route::get('/', [ShopController::class, 'index']);
-
         Route::get('/deleted', [ShopController::class, 'indexDeleted']);
-
         Route::post('/', [ShopController::class, 'create']);
-
         Route::put('/{shop}', [ShopController::class, 'update']);
-
         Route::post('/{shopId}/restore', [ShopController::class, 'restore']);
-
         Route::delete('/{shop}', [ShopController::class, 'delete']);
-
         Route::get('/{shop}/sales', [ShopController::class, 'indexSales']);
-
         Route::get('/{shop}/sales/deleted', [ShopController::class, 'indexDeletedSales']);
-
         Route::post('/{shop}/sales', [ShopController::class, 'createSale']);
-
         Route::delete('/{shop}/sales/{saleId}', [ShopController::class, 'deleteSale']);
-
         Route::post('/{shop}/sales/{saleId}/restore', [ShopController::class, 'restoreSale']);
-
         Route::get('/{shop}/products', [ShopController::class, 'indexProducts']);
-
         Route::get('/{shop}/expenses', [ShopController::class, 'indexExpenses']);
-
         Route::post('/{shop}/expenses', [ShopController::class, 'createExpense']);
-
         Route::delete('/{shop}/expenses/{expenseId}', [ShopController::class, 'deleteExpense']);
-    
         Route::post('/{shop}/products', [ShopController::class, 'createProduct']);
-
         Route::delete('/{shop}/products', [ShopController::class, 'deleteProduct']);
     });
 
@@ -117,11 +86,8 @@ Route::middleware('auth:api')->group(function () {
     
     Route::prefix('sales')->group(function () {
         Route::get('/', [SaleController::class, 'index']);
-
         Route::get('/deleted', [SaleController::class, 'indexDeleted']);
-
         Route::post('/{saleId}/restore', [SaleController::class, 'restore']);
-
         Route::delete('/{sale}', [SaleController::class, 'delete']);
     });
 
